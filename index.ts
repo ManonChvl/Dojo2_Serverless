@@ -79,6 +79,7 @@ function handlePreFlightRequest(): Response {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "content-type",
+      "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     },
   });
 }
@@ -88,16 +89,13 @@ async function handler(req: Request): Promise<Response> {
     return handlePreFlightRequest();
   }
 
-  // Extraire l'URL et le mot de l'utilisateur
-  const url = new URL(req.url);
-  const userWord = url.searchParams.get("word");
+    const url = new URL(req.url);
+    const word = url.searchParams.get("word");
 
-  // Vérifier que le mot est fourni
-  if (!userWord) {
+
+  if (!word) {
     return new Response(
-      JSON.stringify({ 
-        error: "Missing parameter. Use: ?word=votre_mot" 
-      }), 
+      JSON.stringify({ error: "Missing parameter 'word'." }),
       {
         status: 400,
         headers: {
@@ -108,35 +106,26 @@ async function handler(req: Request): Promise<Response> {
     );
   }
 
-  // Mot de référence prédéfini
-  const targetWord = "supelec";
+  const targetWord = "centrale";
 
-  // Préparer la requête vers l'API Word2Vec
-  const headers = new Headers();
-  headers.append("Content-Type", "application/json");
-  
   const similarityRequestBody = JSON.stringify({
-    word1: userWord,    // ← Mot de l'utilisateur
-    word2: targetWord,  // ← Mot prédéfini (supelec)
+    word1: word,
+    word2: targetWord,
   });
-  
-  const requestOptions = {
-    method: "POST",
-    headers: headers,
-    body: similarityRequestBody,
-    redirect: "follow" as RequestRedirect,
-  };
 
   try {
     const response = await fetch(
-      "https://word2vec.nicolasfley.fr/similarity", 
-      requestOptions
+      "https://word2vec.nicolasfley.fr/similarity",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: similarityRequestBody,
+      }
     );
-    
+
     if (!response.ok) {
-      console.error(`Error: ${response.statusText}`);
       return new Response(
-        JSON.stringify({ error: response.statusText }), 
+        JSON.stringify({ error: response.statusText }),
         {
           status: response.status,
           headers: {
@@ -146,23 +135,20 @@ async function handler(req: Request): Promise<Response> {
         }
       );
     }
-    
+
     const result = await response.json();
-    console.log(result);
-    
+
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "content-type",
       },
     });
   } catch (error) {
-    console.error("Fetch error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }), 
-      { 
+      JSON.stringify({ error: error.message }),
+      {
         status: 500,
         headers: {
           "Content-Type": "application/json",
